@@ -61,7 +61,7 @@ Sistem IoT Smart Home Automation berbasis **ESP32**, disimulasikan menggunakan *
    - `ArduinoJson`
 5. Klik tombol **Play / Start Simulation** (tombol hijau).
 6. Perhatikan Serial Monitor: ESP32 akan terhubung ke WiFi `Wokwi-GUEST` dan MQTT HiveMQ broker.
-
+7. atau Masuk ke [https://wokwi.com/projects/480092209017734145](https://wokwi.com/projects/480092209017734145)
 ### 2. Buka Web Dashboard
 1. Buka folder `dashboard/` di laptopmu.
 2. Double-click file `index.html` untuk membukanya di browser (Chrome, Edge, Firefox, dll).
