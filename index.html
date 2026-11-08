@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Home Automation - IoT Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MQTT.js -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              500: '#0284c7',
+              600: '#0369a1',
+              900: '#0c4a6e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.05); }
+    }
+    .motion-active {
+      animation: pulse-glow 1s infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="p-2.5 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20 text-white">
+        <i data-lucide="home" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          SmartHome <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">ESP32 Wokwi</span>
+        </h1>
+        <p class="text-xs text-slate-400">IoT Automation Dashboard via MQTT</p>
+      </div>
+    </div>
+
+    <!-- Status Indicators & Broker Config -->
+    <div class="flex items-center gap-3">
+      <div id="mqtt-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+        Connecting to MQTT...
+      </div>
+      <div id="esp32-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+        ESP32: Waiting...
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Dashboard -->
+  <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+
+    <!-- Sensor Overview Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- Temperature Card -->
+      <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Suhu Ruangan</span>
+          <div class="text-3xl font-extrabold text-white flex items-baseline gap-1">
+            <span id="val-temp">--</span><span class="text-lg font-normal text-slate-400">°C</span>
+          </div>
+          <span id="temp-hint" class="text-xs text-emerald-400 flex items-center gap-1">
+            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Optimal (DHT22)
+          </span>
+        </div>
+        <div class="p-3.5 bg-rose-500/10 text-rose-400 rounded-xl border border-rose-500/20">
+          <i data-lucide="thermometer" class="w-7 h-7"></i>
+        </div>
+      </div>
+
+      <!-- Humidity Card -->
+      <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Kelembaban</span>
+          <div class="text-3xl font-extrabold text-white flex items-baseline gap-1">
+            <span id="val-humidity">--</span><span class="text-lg font-normal text-slate-400">%</span>
+          </div>
+          <span class="text-xs text-cyan-400 flex items-center gap-1">
+            <i data-lucide="droplets" class="w-3.5 h-3.5"></i> Sensor Udara
+          </span>
+        </div>
+        <div class="p-3.5 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/20">
+          <i data-lucide="droplet" class="w-7 h-7"></i>
+        </div>
+      </div>
+
+      <!-- Light (LDR) Card -->
+      <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl flex items-center justify-between">
+        <div class="space-y-1">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Intensitas Cahaya</span>
+          <div class="text-3xl font-extrabold text-white flex items-baseline gap-1">
+            <span id="val-light">--</span><span class="text-lg font-normal text-slate-400">%</span>
+          </div>
+          <span id="light-state-text" class="text-xs text-amber-400 flex items-center gap-1">
+            <i data-lucide="sun" class="w-3.5 h-3.5"></i> Sensor LDR
+          </span>
+        </div>
+        <div class="p-3.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+          <i data-lucide="sun-medium" class="w-7 h-7"></i>
+        </div>
+      </div>
+
+      <!-- Motion (PIR) Card -->
+      <div class="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl flex items-center justify-between" id="card-motion">
+        <div class="space-y-1">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Deteksi Gerakan</span>
+          <div id="val-motion" class="text-2xl font-bold text-slate-300">
+            Aman (Standby)
+          </div>
+          <span id="motion-hint" class="text-xs text-slate-500 flex items-center gap-1">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> PIR Sensor
+          </span>
+        </div>
+        <div id="icon-motion-wrapper" class="p-3.5 bg-slate-800 text-slate-400 rounded-xl border border-slate-700">
+          <i data-lucide="user-x" class="w-7 h-7"></i>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Main Grid: Controls & Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Left 2 Cols: Appliance Controls -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- Quick Actuator Toggles -->
+        <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">
+          <div class="flex items-center justify-between mb-5">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="sliders" class="w-5 h-5 text-cyan-400"></i> Kontrol Aktuator & Saklar
+              </h2>
+              <p class="text-xs text-slate-400">Klik saklar untuk kontrol perangkat secara instan di Wokwi</p>
+            </div>
+            
+            <!-- Auto Mode Switch -->
+            <label class="flex items-center gap-2 text-xs font-medium cursor-pointer bg-slate-800 hover:bg-slate-750 px-3 py-2 rounded-xl border border-slate-700 transition">
+              <span>Auto Automation</span>
+              <input type="checkbox" id="toggle-automode" class="sr-only" onchange="toggleAutoMode(this.checked)" />
+              <div id="automode-indicator" class="w-8 h-4 bg-slate-700 rounded-full relative transition">
+                <div class="dot absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition"></div>
+              </div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            
+            <!-- Lampu Ruang Tamu -->
+            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between gap-4">
+              <div class="flex items-center justify-between">
+                <div class="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <i data-lucide="lightbulb" class="w-5 h-5"></i>
+                </div>
+                <span id="badge-living" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">OFF</span>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-white">Lampu Ruang Tamu</p>
+                <p class="text-[11px] text-slate-400">Pin GPIO 2 (LED Hijau)</p>
+              </div>
+              <button id="btn-living" onclick="toggleDevice('living_light')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                Nyalakan
+              </button>
+            </div>
+
+            <!-- Lampu Kamar -->
+            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between gap-4">
+              <div class="flex items-center justify-between">
+                <div class="p-2.5 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+                  <i data-lucide="lamp" class="w-5 h-5"></i>
+                </div>
+                <span id="badge-bedroom" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">OFF</span>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-white">Lampu Kamar Tidur</p>
+                <p class="text-[11px] text-slate-400">Pin GPIO 4 (LED Kuning)</p>
+              </div>
+              <button id="btn-bedroom" onclick="toggleDevice('bedroom_light')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                Nyalakan
+              </button>
+            </div>
+
+            <!-- Kipas / AC -->
+            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex flex-col justify-between gap-4">
+              <div class="flex items-center justify-between">
+                <div class="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <i data-lucide="fan" class="w-5 h-5"></i>
+                </div>
+                <span id="badge-fan" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">OFF</span>
+              </div>
+              <div>
+                <p class="font-semibold text-sm text-white">Pendingin / AC</p>
+                <p class="text-[11px] text-slate-400">Pin GPIO 16 (LED Biru)</p>
+              </div>
+              <button id="btn-fan" onclick="toggleDevice('fan')" class="w-full py-2 px-3 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+                Nyalakan
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Secondary Controls: Smart Door Lock & Panic Buzzer -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            
+            <!-- Smart Door Lock (Servo) -->
+            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div id="door-icon-box" class="p-3 rounded-xl bg-slate-800 text-slate-400 border border-slate-700">
+                  <i data-lucide="lock" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <p class="font-semibold text-sm text-white">Smart Door Lock</p>
+                  <p id="door-status-text" class="text-xs text-slate-400">Pintu Terkunci (0°)</p>
+                </div>
+              </div>
+              <button id="btn-door" onclick="toggleDoor()" class="py-2 px-4 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/30 transition">
+                Buka Pintu
+              </button>
+            </div>
+
+            <!-- Siren / Alarm Buzzer -->
+            <div class="p-4 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div id="alarm-icon-box" class="p-3 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                  <i data-lucide="bell" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <p class="font-semibold text-sm text-white">Alarm Keamanan</p>
+                  <p id="alarm-status-text" class="text-xs text-slate-400">Buzzer Siaga (Mati)</p>
+                </div>
+              </div>
+              <button id="btn-alarm" onclick="toggleAlarm()" class="py-2 px-4 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition">
+                Trigger Alarm
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Real-time Temperature & Humidity Graph -->
+        <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-cyan-400"></i> Grafik Suhu & Kelembaban (Live)
+            </h2>
+            <span class="text-xs text-slate-500">Update setiap 2 detik</span>
+          </div>
+          <div class="h-64 w-full">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right 1 Col: Event Logs & Simulation Info -->
+      <div class="space-y-6">
+
+        <!-- Status Rangkaian Wokwi Guide -->
+        <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl space-y-4">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="cpu" class="w-5 h-5 text-cyan-400"></i> Status Pin ESP32
+          </h2>
+          <div class="text-xs space-y-2 text-slate-300">
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">DHT22 (Suhu/Hum)</span>
+              <span class="font-mono text-cyan-400">GPIO 15</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">PIR Motion Sensor</span>
+              <span class="font-mono text-purple-400">GPIO 13</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">LDR (Analog Light)</span>
+              <span class="font-mono text-amber-400">GPIO 34</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Lampu Ruang Tamu</span>
+              <span class="font-mono text-emerald-400">GPIO 2</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Lampu Kamar</span>
+              <span class="font-mono text-yellow-400">GPIO 4</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Kipas / AC</span>
+              <span class="font-mono text-blue-400">GPIO 16</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Servo Door Lock</span>
+              <span class="font-mono text-cyan-400">GPIO 18</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800">
+              <span class="text-slate-400">Buzzer Alarm</span>
+              <span class="font-mono text-rose-400">GPIO 19</span>
+            </div>
+            <div class="flex justify-between py-1">
+              <span class="text-slate-400">LCD 16x2 I2C</span>
+              <span class="font-mono text-slate-400">SDA: 21, SCL: 22</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Event Feed -->
+        <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl flex flex-col h-96">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i data-lucide="terminal" class="w-5 h-5 text-cyan-400"></i> Log Aktivitas
+            </h2>
+            <button onclick="clearLogs()" class="text-[11px] text-slate-500 hover:text-slate-300">Clear</button>
+          </div>
+          <div id="log-container" class="flex-1 overflow-y-auto space-y-2 pr-1 font-mono text-[11px] text-slate-400">
+            <div class="p-2 rounded bg-slate-950/60 border border-slate-800/80 text-slate-500">
+              System dashboard initialized. Menunggu koneksi broker...
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="border-t border-slate-800/80 py-4 px-6 text-center text-xs text-slate-500">
+    Smart Home Automation • Wokwi Simulator & MQTT IoT Dashboard • Built for Pair Programming
+  </footer>
+
+  <script>
+    // ================= MQTT CONFIGURATION =================
+    // Public HiveMQ WebSocket URL
+    const MQTT_BROKER = "wss://broker.hivemq.com:8884/mqtt";
+    const CLIENT_ID   = "SmartHomeWeb_" + Math.random().toString(16).substr(2, 8);
+
+    // Topics
+    const TOPIC_TELEMETRY = "smarthome/amri/telemetry";
+    const TOPIC_STATUS    = "smarthome/amri/status";
+    const CMD_LIVING      = "smarthome/amri/cmd/living_light";
+    const CMD_BEDROOM     = "smarthome/amri/cmd/bedroom_light";
+    const CMD_FAN         = "smarthome/amri/cmd/fan";
+    const CMD_DOOR        = "smarthome/amri/cmd/door";
+    const CMD_ALARM       = "smarthome/amri/cmd/alarm";
+    const CMD_AUTO        = "smarthome/amri/cmd/auto_mode";
+
+    // Internal State
+    let state = {
+      livingLight: false,
+      bedroomLight: false,
+      fan: false,
+      door: false,
+      alarm: false,
+      autoMode: false,
+      motion: false
+    };
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // ================= CHART CONFIGURATION =================
+    const ctx = document.getElementById('telemetryChart').getContext('2d');
+    const maxDataPoints = 15;
+    const telemetryChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Suhu (°C)',
+            borderColor: '#f43f5e',
+            backgroundColor: 'rgba(244, 63, 94, 0.1)',
+            data: [],
+            borderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Kelembaban (%)',
+            borderColor: '#06b6d4',
+            backgroundColor: 'rgba(6, 182, 212, 0.1)',
+            data: [],
+            borderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { size: 11 } }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(148, 163, 184, 0.05)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          },
+          y: {
+            type: 'linear',
+            display: true,
+            position: 'left',
+            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+            ticks: { color: '#f43f5e', font: { size: 10 } }
+          },
+          y1: {
+            type: 'linear',
+            display: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#06b6d4', font: { size: 10 } }
+          }
+        }
+      }
+    });
+
+    function addChartData(timeLabel, temp, hum) {
+      if (telemetryChart.data.labels.length > maxDataPoints) {
+        telemetryChart.data.labels.shift();
+        telemetryChart.data.datasets[0].data.shift();
+        telemetryChart.data.datasets[1].data.shift();
+      }
+      telemetryChart.data.labels.push(timeLabel);
+      telemetryChart.data.datasets[0].data.push(temp);
+      telemetryChart.data.datasets[1].data.push(hum);
+      telemetryChart.update();
+    }
+
+    // ================= LOGGER =================
+    function addLog(text, type = 'info') {
+      const logContainer = document.getElementById('log-container');
+      const timeStr = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      
+      let badgeClass = "text-slate-400";
+      if (type === 'cmd') badgeClass = "text-cyan-400 font-semibold";
+      if (type === 'alert') badgeClass = "text-rose-400 font-semibold";
+      if (type === 'success') badgeClass = "text-emerald-400 font-semibold";
+
+      div.className = "p-2 rounded bg-slate-950/70 border border-slate-800/80 leading-relaxed";
+      div.innerHTML = `<span class="text-slate-600">[${timeStr}]</span> <span class="${badgeClass}">${text}</span>`;
+      
+      logContainer.appendChild(div);
+      logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('log-container').innerHTML = '';
+      addLog("Log dibersihkan.");
+    }
+
+    // ================= MQTT CONNECTION =================
+    addLog(`Menghubungkan ke ${MQTT_BROKER}...`);
+    const client = mqtt.connect(MQTT_BROKER, {
+      clientId: CLIENT_ID,
+      clean: true,
+      connectTimeout: 5000,
+      reconnectPeriod: 2000
+    });
+
+    client.on('connect', () => {
+      const statusBadge = document.getElementById('mqtt-status-badge');
+      statusBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Broker: Connected`;
+      addLog("Berhasil terhubung ke HiveMQ Public Broker!", 'success');
+
+      // Subscribe topik
+      client.subscribe([TOPIC_TELEMETRY, TOPIC_STATUS], (err) => {
+        if (!err) {
+          addLog(`Subscribed ke: ${TOPIC_TELEMETRY}`);
+        }
+      });
+    });
+
+    client.on('error', (err) => {
+      addLog(`MQTT Error: ${err.message}`, 'alert');
+    });
+
+    client.on('close', () => {
+      const statusBadge = document.getElementById('mqtt-status-badge');
+      statusBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20";
+      statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span> Broker Disconnected`;
+    });
+
+    // ================= RECEIVE MESSAGES =================
+    client.on('message', (topic, message) => {
+      const msgStr = message.toString();
+
+      if (topic === TOPIC_STATUS) {
+        const espBadge = document.getElementById('esp32-status-badge');
+        if (msgStr === 'online') {
+          espBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+          espBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ESP32: Online`;
+          addLog("ESP32 Wokwi terdeteksi ONLINE", 'success');
+        } else {
+          espBadge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700";
+          espBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500"></span> ESP32: Offline`;
+          addLog("ESP32 Wokwi OFFLINE", 'alert');
+        }
+        return;
+      }
+
+      if (topic === TOPIC_TELEMETRY) {
+        try {
+          const data = JSON.parse(msgStr);
+          updateUI(data);
+        } catch (e) {
+          console.error("Gagal parse JSON telemetri", e);
+        }
+      }
+    });
+
+    // ================= UPDATE UI FROM TELEMETRY =================
+    function updateUI(data) {
+      // Suhu & Kelembaban
+      document.getElementById('val-temp').innerText = data.temp !== undefined ? data.temp : '--';
+      document.getElementById('val-humidity').innerText = data.humidity !== undefined ? data.humidity : '--';
+
+      // Chart Update
+      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      addChartData(nowStr, data.temp, data.humidity);
+
+      // Cahaya (LDR)
+      document.getElementById('val-light').innerText = data.light !== undefined ? data.light : '--';
+      const lightHint = document.getElementById('light-state-text');
+      if (data.light < 30) {
+        lightHint.innerHTML = `<i data-lucide="moon" class="w-3.5 h-3.5"></i> Gelap (Malam)`;
+      } else {
+        lightHint.innerHTML = `<i data-lucide="sun" class="w-3.5 h-3.5"></i> Terang`;
+      }
+
+      // Deteksi Gerak (PIR)
+      const motionCard = document.getElementById('card-motion');
+      const motionVal = document.getElementById('val-motion');
+      const motionIcon = document.getElementById('icon-motion-wrapper');
+      if (data.motion) {
+        if (!state.motion) {
+          addLog("⚠️ PERINGATAN: Gerakan terdeteksi di rumah!", 'alert');
+        }
+        motionVal.innerText = "GERAKAN!";
+        motionVal.className = "text-2xl font-bold text-rose-400";
+        motionCard.classList.add("border-rose-500/50", "motion-active");
+        motionIcon.className = "p-3.5 bg-rose-500/20 text-rose-400 rounded-xl border border-rose-500/30";
+        motionIcon.innerHTML = `<i data-lucide="alert-triangle" class="w-7 h-7"></i>`;
+      } else {
+        motionVal.innerText = "Aman (Standby)";
+        motionVal.className = "text-2xl font-bold text-slate-300";
+        motionCard.classList.remove("border-rose-500/50", "motion-active");
+        motionIcon.className = "p-3.5 bg-slate-800 text-slate-400 rounded-xl border border-slate-700";
+        motionIcon.innerHTML = `<i data-lucide="user-x" class="w-7 h-7"></i>`;
+      }
+      state.motion = data.motion;
+
+      // Sinkronisasi status saklar
+      updateSwitchUI('living_light', data.livingLight, 'btn-living', 'badge-living');
+      updateSwitchUI('bedroom_light', data.bedroomLight, 'btn-bedroom', 'badge-bedroom');
+      updateSwitchUI('fan', data.fan, 'btn-fan', 'badge-fan');
+
+      // Sinkronisasi Door
+      state.door = data.door;
+      const doorBtn = document.getElementById('btn-door');
+      const doorText = document.getElementById('door-status-text');
+      const doorIconBox = document.getElementById('door-icon-box');
+      if (data.door) {
+        doorText.innerText = "Pintu Terbuka (90°)";
+        doorBtn.innerText = "Kunci Pintu";
+        doorBtn.className = "py-2 px-4 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition";
+        doorIconBox.className = "p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        doorIconBox.innerHTML = `<i data-lucide="door-open" class="w-6 h-6"></i>`;
+      } else {
+        doorText.innerText = "Pintu Terkunci (0°)";
+        doorBtn.innerText = "Buka Pintu";
+        doorBtn.className = "py-2 px-4 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/30 transition";
+        doorIconBox.className = "p-3 rounded-xl bg-slate-800 text-slate-400 border border-slate-700";
+        doorIconBox.innerHTML = `<i data-lucide="lock" class="w-6 h-6"></i>`;
+      }
+
+      // Sinkronisasi Alarm
+      state.alarm = data.alarm;
+      const alarmBtn = document.getElementById('btn-alarm');
+      const alarmText = document.getElementById('alarm-status-text');
+      if (data.alarm) {
+        alarmText.innerText = "ALARM BERBUNYI!";
+        alarmBtn.innerText = "Hentikan Alarm";
+        alarmBtn.className = "py-2 px-4 rounded-lg text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-rose-300 border border-rose-500/30 transition";
+      } else {
+        alarmText.innerText = "Buzzer Siaga (Mati)";
+        alarmBtn.innerText = "Trigger Alarm";
+        alarmBtn.className = "py-2 px-4 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 transition";
+      }
+
+      // Sinkronisasi Auto Mode
+      state.autoMode = data.autoMode;
+      document.getElementById('toggle-automode').checked = data.autoMode;
+      const dot = document.querySelector('#automode-indicator .dot');
+      const container = document.getElementById('automode-indicator');
+      if (data.autoMode) {
+        container.classList.remove('bg-slate-700');
+        container.classList.add('bg-cyan-500');
+        dot.style.transform = 'translateX(16px)';
+      } else {
+        container.classList.remove('bg-cyan-500');
+        container.classList.add('bg-slate-700');
+        dot.style.transform = 'translateX(0px)';
+      }
+
+      lucide.createIcons();
+    }
+
+    function updateSwitchUI(device, isOn, btnId, badgeId) {
+      state[device] = isOn;
+      const btn = document.getElementById(btnId);
+      const badge = document.getElementById(badgeId);
+
+      if (isOn) {
+        badge.innerText = "ON";
+        badge.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        btn.innerText = "Matikan";
+        btn.className = "w-full py-2 px-3 rounded-lg text-xs font-semibold bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 transition";
+      } else {
+        badge.innerText = "OFF";
+        badge.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400";
+        btn.innerText = "Nyalakan";
+        btn.className = "w-full py-2 px-3 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/20 transition";
+      }
+    }
+
+    // ================= PUBLISH COMMANDS =================
+    function toggleDevice(device) {
+      const nextState = !state[device];
+      let topic = "";
+      if (device === 'living_light') topic = CMD_LIVING;
+      if (device === 'bedroom_light') topic = CMD_BEDROOM;
+      if (device === 'fan') topic = CMD_FAN;
+
+      const payload = nextState ? "ON" : "OFF";
+      client.publish(topic, payload);
+      addLog(`Kirim Perintah: [${device}] -> ${payload}`, 'cmd');
+    }
+
+    function toggleDoor() {
+      const nextState = !state.door;
+      const payload = nextState ? "OPEN" : "CLOSE";
+      client.publish(CMD_DOOR, payload);
+      addLog(`Kirim Perintah: [Door Lock] -> ${payload}`, 'cmd');
+    }
+
+    function toggleAlarm() {
+      const nextState = !state.alarm;
+      const payload = nextState ? "ON" : "OFF";
+      client.publish(CMD_ALARM, payload);
+      addLog(`Kirim Perintah: [Alarm] -> ${payload}`, 'cmd');
+    }
+
+    function toggleAutoMode(checked) {
+      const payload = checked ? "ON" : "OFF";
+      client.publish(CMD_AUTO, payload);
+      addLog(`Kirim Perintah: [Auto Mode] -> ${payload}`, 'cmd');
+    }
+  </script>
+</body>
+</html>
