@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "author": "Antigravity Smart Home",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 120, "left": 100, "attrs": {} },
+    { "type": "wokwi-dht22", "id": "dht", "top": -40, "left": -80, "attrs": {} },
+    { "type": "wokwi-pir-motion-sensor", "id": "pir", "top": 140, "left": -120, "attrs": {} },
+    { "type": "wokwi-photoresistor-sensor", "id": "ldr", "top": 300, "left": -100, "attrs": {} },
+    { "type": "wokwi-led", "id": "led-living", "top": -70, "left": 260, "attrs": { "color": "green", "label": "Living Room" } },
+    { "type": "wokwi-led", "id": "led-bedroom", "top": -70, "left": 350, "attrs": { "color": "yellow", "label": "Bedroom" } },
+    { "type": "wokwi-led", "id": "led-fan", "top": -70, "left": 440, "attrs": { "color": "blue", "label": "Fan / AC" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": 20, "left": 260, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": 20, "left": 350, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r3", "top": 20, "left": 440, "attrs": { "value": "220" } },
+    { "type": "wokwi-servo", "id": "servo-door", "top": 140, "left": 360, "attrs": {} },
+    { "type": "wokwi-buzzer", "id": "buzzer", "top": 280, "left": 380, "attrs": { "volume": "0.1" } },
+    { "type": "wokwi-lcd1602", "id": "lcd", "top": 380, "left": 100, "attrs": { "pins": "i2c" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+
+    [ "esp:3V3", "dht:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "dht:GND", "black", [ "v0" ] ],
+    [ "esp:15", "dht:SDA", "orange", [ "v0" ] ],
+
+    [ "esp:3V3", "pir:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "pir:GND", "black", [ "v0" ] ],
+    [ "esp:13", "pir:OUT", "purple", [ "v0" ] ],
+
+    [ "esp:3V3", "ldr:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "ldr:GND", "black", [ "v0" ] ],
+    [ "esp:34", "ldr:AO", "brown", [ "v0" ] ],
+
+    [ "esp:2", "r1:1", "green", [ "v0" ] ],
+    [ "r1:2", "led-living:A", "green", [ "v0" ] ],
+    [ "led-living:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "esp:4", "r2:1", "gold", [ "v0" ] ],
+    [ "r2:2", "led-bedroom:A", "gold", [ "v0" ] ],
+    [ "led-bedroom:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "esp:16", "r3:1", "blue", [ "v0" ] ],
+    [ "r3:2", "led-fan:A", "blue", [ "v0" ] ],
+    [ "led-fan:C", "esp:GND.2", "black", [ "v0" ] ],
+
+    [ "esp:5V", "servo-door:V+", "red", [ "v0" ] ],
+    [ "esp:GND.2", "servo-door:GND", "black", [ "v0" ] ],
+    [ "esp:18", "servo-door:PWM", "cyan", [ "v0" ] ],
+
+    [ "esp:19", "buzzer:2", "magenta", [ "v0" ] ],
+    [ "esp:GND.2", "buzzer:1", "black", [ "v0" ] ],
+
+    [ "esp:5V", "lcd:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "lcd:GND", "black", [ "v0" ] ],
+    [ "esp:21", "lcd:SDA", "blue", [ "v0" ] ],
+    [ "esp:22", "lcd:SCL", "yellow", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}
