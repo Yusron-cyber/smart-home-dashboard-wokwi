@@ -66,3 +66,4 @@ Sistem IoT Smart Home Automation berbasis **ESP32**, disimulasikan menggunakan *
 1. Double-click file `index.html` untuk membukanya di browser (Chrome, Edge, Firefox, dll).
 2. Status badge di pojok kanan atas akan berubah hijau (**Broker: Connected** dan **ESP32: Online**).
 3. Sekarang kamu bisa mengontrol saklar, pintu, alarm, dan memantau grafik suhu secara langsung!
+4. atau masuk ke [https://smart-home-dashboard-wokwi.vercel.app/](https://smart-home-dashboard-wokwi.vercel.app/)
