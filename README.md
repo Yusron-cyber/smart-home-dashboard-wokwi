@@ -63,7 +63,6 @@ Sistem IoT Smart Home Automation berbasis **ESP32**, disimulasikan menggunakan *
 6. Perhatikan Serial Monitor: ESP32 akan terhubung ke WiFi `Wokwi-GUEST` dan MQTT HiveMQ broker.
 7. atau Masuk ke [https://wokwi.com/projects/480092209017734145](https://wokwi.com/projects/480092209017734145)
 ### 2. Buka Web Dashboard
-1. Buka folder `dashboard/` di laptopmu.
-2. Double-click file `index.html` untuk membukanya di browser (Chrome, Edge, Firefox, dll).
-3. Status badge di pojok kanan atas akan berubah hijau (**Broker: Connected** dan **ESP32: Online**).
-4. Sekarang kamu bisa mengontrol saklar, pintu, alarm, dan memantau grafik suhu secara langsung!
+1. Double-click file `index.html` untuk membukanya di browser (Chrome, Edge, Firefox, dll).
+2. Status badge di pojok kanan atas akan berubah hijau (**Broker: Connected** dan **ESP32: Online**).
+3. Sekarang kamu bisa mengontrol saklar, pintu, alarm, dan memantau grafik suhu secara langsung!
